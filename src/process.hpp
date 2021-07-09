@@ -19,7 +19,7 @@ class Process {
 
   public:
     auto open(const char* shell, const char* command, const char* working_dir = nullptr, const std::array<bool, 3> open_pipe = {}) -> OpenResult;
-    auto close() -> CloseResult;
+    auto close(bool force = false) -> CloseResult;
     auto get_pid() const -> pid_t;
 
     Process() = default;
@@ -44,5 +44,6 @@ struct CloseResult {
     ExitStatus status;
     std::string out;
     std::string err;
+    const char* message = nullptr;
 };
 } // namespace process

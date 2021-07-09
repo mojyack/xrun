@@ -176,6 +176,10 @@ auto Server::run() -> void {
             THROW("stdin closed");
         }
         if(job_done.revents & POLLIN) {
+            {
+                int64_t v;
+                read(job_done_event, &v, sizeof(int64_t));
+            }
             if(exit_on_done) {
                 bool jobs_left;
                 {

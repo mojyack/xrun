@@ -64,15 +64,23 @@ auto Process::open(const char* shell, const char* command, const char* working_d
         _exit(0);
     }
 }
-auto Process::close() -> CloseResult {
+auto Process::close(const bool force) -> CloseResult {
+    if(force) {
+        if(kill(pid, SIGKILL) == -1) {
+            return {.message = "Failed to kill process"};
+        }
+    }
+
+    int status;
+    waitpid(pid, &status, 0);
+
     {
         int v = 1;
         write(output_notify, &v, sizeof(int));
     }
     output_collector.join();
     ::close(output_notify);
-    int status;
-    waitpid(pid, &status, 0);
+
     for(auto i = 0; i < 3; ++i) {
         if(pipes[i] != nullptr) {
             fclose(pipes[i]);
@@ -121,20 +129,3 @@ auto Process::get_pid() const -> pid_t {
     return pid;
 }
 } // namespace process
-
-//
-//int p2close(FILE** fp) {
-//    int status;
-//    fclose(fp[0]);
-//    fclose(fp[1]);
-//    wait(&status);
-//    return status;
-//}
-//
-//void* readerr(void* param) {
-//    Param* p = (Param*)param;
-//    int    c;
-//    while(c = getc(p->fp[1]), c != EOF)
-//        p->err += c;
-//    return 0;
-//}
