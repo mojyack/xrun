@@ -15,10 +15,10 @@ class Process {
     std::thread output_collector;
     std::string outputs[2];
     int         output_notify;
-    void collect_outputs();
+    auto        collect_outputs() -> void;
 
   public:
-    auto open(const char* shell, const char* command, const char* working_dir = nullptr, const std::array<bool, 3> open_pipe = {}) -> OpenResult;
+    auto open(const char* shell, const char* command, const char* working_dir = nullptr, std::array<bool, 3> open_pipe = {}) -> OpenResult;
     auto close(bool force = false) -> CloseResult;
     auto get_pid() const -> pid_t;
 
@@ -41,7 +41,7 @@ struct ExitStatus {
 };
 
 struct CloseResult {
-    ExitStatus status;
+    ExitStatus  status;
     std::string out;
     std::string err;
     const char* message = nullptr;

@@ -2,19 +2,28 @@
 #include <condition_variable>
 #include <functional>
 #include <mutex>
+#include <optional>
 
-namespace xrun {
 template <typename T>
 struct SafeVar {
     mutable std::mutex mutex;
     T                  data;
 
-    void store(T src) {
-        std::lock_guard<std::mutex> lock(mutex);
-        data = src;
+    auto get_lock() const -> std::lock_guard<std::mutex> {
+        return std::lock_guard<std::mutex>(mutex);
     }
-    T load() const {
-        std::lock_guard<std::mutex> lock(mutex);
+    auto store(T src) -> void {
+        auto lock = get_lock();
+        data      = src;
+    }
+    auto load() const -> T {
+        auto lock = get_lock();
+        return data;
+    }
+    auto operator->() -> T* {
+        return &data;
+    }
+    auto operator*() -> T& {
         return data;
     }
     SafeVar(T src) : data(src) {}
@@ -29,13 +38,13 @@ class ConditionalVariable {
   public:
     void wait() {
         waked.store(false);
-        std::unique_lock<std::mutex> lock(waked.mutex);
+        auto lock = std::unique_lock<std::mutex>(waked.mutex);
         condv.wait(lock, [this]() { return waked.data; });
     }
     template <typename D>
     bool wait_for(D duration) {
         waked.store(false);
-        std::unique_lock<std::mutex> lock(waked.mutex);
+        auto lock = std::unique_lock<std::mutex>(waked.mutex);
         return condv.wait_for(lock, duration, [this]() { return waked.data; });
     }
     void wakeup() {
@@ -43,4 +52,40 @@ class ConditionalVariable {
         condv.notify_all();
     }
 };
-} // namespace xrun
+
+template <class T>
+class Channel {
+    T                       buffer;
+    std::mutex              buffer_mutex;
+    std::condition_variable read_cond;
+    std::condition_variable write_cond;
+    bool                    data_avail = false;
+
+  public:
+    auto write(T data) -> void {
+        auto lock = std::unique_lock<std::mutex>(buffer_mutex);
+        write_cond.wait(lock, [&]() { return !data_avail; });
+        buffer     = std::move(data);
+        data_avail = true;
+        read_cond.notify_all();
+    }
+
+    auto read() -> T {
+        auto lock = std::unique_lock<std::mutex>(buffer_mutex);
+        read_cond.wait(lock, [&]() { return data_avail; });
+        auto item  = std::move(buffer);
+        data_avail = false;
+        write_cond.notify_all();
+        return item;
+    }
+
+    auto try_read() -> std::optional<T> {
+        {
+            auto lock = std::unique_lock<std::mutex>(buffer_mutex);
+            if(!data_avail) {
+                return std::nullopt;
+            }
+        }
+        return read();
+    }
+};

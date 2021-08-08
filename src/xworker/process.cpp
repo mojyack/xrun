@@ -89,7 +89,7 @@ auto Process::close(const bool force) -> CloseResult {
     const bool exitted = WIFEXITED(status);
     return {{exitted ? ExitReason::Exit : ExitReason::Signal, exitted ? WEXITSTATUS(status) : WTERMSIG(status)}, std::move(outputs[0]), std::move(outputs[1])};
 }
-void Process::collect_outputs() {
+auto Process::collect_outputs() -> void {
     std::vector<pollfd> fds;
     if(pipes[1] != nullptr) {
         fds.emplace_back(pollfd{.fd = fileno(pipes[1]), .events = POLLIN});
